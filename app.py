@@ -14,7 +14,7 @@ st.title("🏠 房地產一鍵評估系統 (Gemini 3 強力版)")
 st.write("上傳謄本照片或 PDF，即可自動生成 Word 報告。")
 
 # --- 2. API KEY 設定 (已修正大小寫 K) ---
-API_KEY = "AIzaSyBoaK_uNJwl_KJnML5cllbPBblhl5C6HLc"
+API_KEY = "AIzaSyBoaK_uNJwI_KJnML5cllbPBbIhl5C6HLc"
 
 # --- 3. 工具函數 ---
 def set_font(run, size=14, bold=False, color=None):
