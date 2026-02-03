@@ -8,14 +8,15 @@ import datetime
 import io
 import docx
 
-# 網頁基礎設定
+# --- 1. 網頁介面大字體設定 ---
 st.set_page_config(page_title="房地產終極評估系統", layout="centered")
-st.title("🏠 房地產一鍵評估系統")
-st.write("上傳謄本照片，直接生成 Word 評估報告。")
+st.title("🏠 房地產一鍵評估系統 (V5)")
+st.write("請上傳謄本照片或 PDF，系統將自動生成 Word 報告。")
 
-# 請將您的 API Key 填入下方引號中
-API_KEY = "AIzaSyBoaK_uNJwI_KJnML5cllbPBbIhl5C6HLc"
+# --- 2. 您的 API KEY (請確認引號內有貼上那一串 AIza... 的代碼) ---
+API_KEY = "您的_API_KEY_貼在這邊"
 
+# --- 3. Word 排版輔助工具 ---
 def set_font(run, size=14, bold=False, color=None):
     run.font.name = 'Microsoft JhengHei'
     run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Microsoft JhengHei')
@@ -24,7 +25,7 @@ def set_font(run, size=14, bold=False, color=None):
     if color:
         run.font.color.rgb = color
 
-def add_hyperlink(paragraph, url, text):
+def add_hyperlink(paragraph, text, url):
     part = paragraph.part
     r_id = part.relate_to(url, docx.opc.constants.RELATIONSHIP_TYPE.HYPERLINK, is_external=True)
     hyperlink = docx.oxml.shared.OxmlElement('w:hyperlink')
@@ -45,35 +46,63 @@ def add_hyperlink(paragraph, url, text):
     hyperlink.append(new_run)
     paragraph._p.append(hyperlink)
 
-def calc_balance(principal, rate, years, months):
-    r = rate/100/12
-    n = years*12
-    if r == 0: return principal * (1 - months/n)
-    return principal * ((1+r)**n - (1+r)**months) / ((1+r)**n - 1)
-
-uploaded_file = st.file_uploader("請選擇謄本檔案 (PDF/JPG/PNG)", type=["pdf", "png", "jpg", "jpeg"])
+# --- 4. 檔案上傳介面 ---
+uploaded_file = st.file_uploader("選擇檔案", type=["pdf", "png", "jpg", "jpeg"])
 
 if uploaded_file and API_KEY != "您的_API_KEY_貼在這邊":
-    if st.button("🚀 開始分析"):
-        with st.spinner("系統分析中..."):
-            genai.configure(api_key=API_KEY)
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            prompt = "請深度解析此謄本。包含產權警示、RC/SRC建材、屋齡、姓名、完整身分證(含英文字母)、持分、戶籍地。計算30年利率2.15%殘值、市場80%價格與二胎估值。禁止cite標記。"
-           res = model.generate_content([
-    prompt, 
-    {"mime_type": "application/pdf" if ".pdf" in uploaded_file.name.lower() else uploaded_file.type, 
-     "data": uploaded_file.getvalue()}
-]) 確保傳遞正確的檔案格式
-
-            
-            doc = Document()
-            title = doc.add_heading('', 0)
-            run_t = title.add_run('房地產全方位終極評估報告書')
-            set_font(run_t, size=22, bold=True, color=RGBColor(0, 51, 153))
-            doc.add_paragraph(res.text) # 簡化寫入，實際會按表格排版
-            
-            buf = io.BytesIO()
-            doc.save(buf)
-            buf.seek(0)
-            st.success("評估完成")
-            st.download_button("📥 下載 Word 報告", data=buf, file_name="房產評估.docx")
+    if st.button("🚀 點此開始產出報告"):
+        with st.spinner("AI 正在深度解析並計算殘值..."):
+            try:
+                genai.configure(api_key=API_KEY)
+                # 使用最穩定的 flash 模型
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                
+                # 強制指令：包含身分證英文字母、街景、殘值試算
+                prompt = """
+                請解析此謄本，並產出以下資訊：
+                1. 產權警示：查封/限制登記/民間二胎。
+                2. 社區建築：社區名、構造、樓層、屋齡。
+                3. 所有權人：姓名、完整身分證(必須包含首位英文字母，如 R220*****9)、持分、戶籍地、地址。
+                4. 貸款殘值：列出銀行、設定額、日期。採30年2.15%利率試算目前餘額。
+                5. 二胎空間：計算(市場80%價格 - 剩餘貸款)。
+                6. 交通：到國道與火車站車程。
+                禁止出現任何 標記。
+                """
+                
+                mime_type = "application/pdf" if uploaded_file.name.lower().endswith(".pdf") else uploaded_file.type
+                response = model.generate_content([prompt, {"mime_type": mime_type, "data": uploaded_file.getvalue()}])
+                
+                # --- 製作 Word 檔案 ---
+                doc = Document()
+                title = doc.add_heading('', 0)
+                run_t = title.add_run('房地產全方位終極評估報告書')
+                set_font(run_t, size=20, bold=True, color=RGBColor(0, 51, 153))
+                title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                
+                # 內容文字 (AI 回傳的結果)
+                p = doc.add_paragraph()
+                set_font(p.add_run(response.text), size=14)
+                
+                # 強制加入可點擊超連結 (以地址為基礎)
+                doc.add_heading('', level=1).add_run('外部資源連結').font.size = Pt(16)
+                p_link = doc.add_paragraph()
+                set_font(p_link.add_run("Google 街景圖連結："))
+                # 這裡預留一個連結位置
+                add_hyperlink(p_link, "點此開啟 Google 街景", "https://www.google.com/maps")
+                
+                # 產出檔案
+                buf = io.BytesIO()
+                doc.save(buf)
+                buf.seek(0)
+                
+                st.success("報告生成成功！")
+                st.download_button(
+                    label="📥 下載 Word 報告書",
+                    data=buf,
+                    file_name=f"房產評估報告_{datetime.date.today()}.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                )
+            except Exception as e:
+                st.error(f"發生錯誤：{e}")
+elif not uploaded_file:
+    st.info("請上傳檔案後點擊開始。")
