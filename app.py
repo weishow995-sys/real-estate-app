@@ -54,8 +54,8 @@ if uploaded_file:
         with st.spinner("Gemini 3 正在深度解析數據中..."):
             try:
                 genai.configure(api_key=API_KEY)
-                # 使用最新 Gemini 3 系列模型 (程式碼代號為 2.0-flash)
-                model = genai.GenerativeModel('gemini-2.0-flash')
+                # 使用最新 Gemini 1.5
+                model = genai.GenerativeModel('gemini-1.5-flash')
                 
                 prompt = """
                 請解析此房地產謄本，產出以下格式：
