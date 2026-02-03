@@ -8,15 +8,16 @@ import datetime
 import io
 import docx
 
-# --- 1. 網頁介面大字體設定 ---
-st.set_page_config(page_title="房地產終極評估系統", layout="centered")
-st.title("🏠 房地產一鍵評估系統 (V5)")
+# --- 1. 網頁介面設定 ---
+st.set_page_config(page_title="房地產評估系統", layout="centered")
+st.title("🏠 房地產一鍵評估系統 (V6)")
 st.write("請上傳謄本照片或 PDF，系統將自動生成 Word 報告。")
 
-# --- 2. 您的 API KEY (請確認引號內有貼上那一串 AIza... 的代碼) ---
-API_KEY = "您的_API_KEY_貼在這邊"
+# --- 2. 您的 API KEY (請在下方引號內貼上你的金鑰) ---
+# ⚠️ 請確認這裡有換成你那串 AIza... 的代碼
+API_KEY = "AIzaSyBoaK_uNJwI_KJnML5cllbPBbIhl5C6HLc"
 
-# --- 3. Word 排版輔助工具 ---
+# --- 3. 工具函數 ---
 def set_font(run, size=14, bold=False, color=None):
     run.font.name = 'Microsoft JhengHei'
     run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Microsoft JhengHei')
@@ -46,63 +47,49 @@ def add_hyperlink(paragraph, text, url):
     hyperlink.append(new_run)
     paragraph._p.append(hyperlink)
 
-# --- 4. 檔案上傳介面 ---
+# --- 4. 檔案上傳與按鈕 ---
 uploaded_file = st.file_uploader("選擇檔案", type=["pdf", "png", "jpg", "jpeg"])
 
-if uploaded_file and API_KEY != "您的_API_KEY_貼在這邊":
+# 這裡改簡單了：只要有檔案，按鈕就出現
+if uploaded_file:
     if st.button("🚀 點此開始產出報告"):
-        with st.spinner("AI 正在深度解析並計算殘值..."):
-            try:
-                genai.configure(api_key=API_KEY)
-                # 使用最穩定的 flash 模型
-                model = genai.GenerativeModel('gemini-1.5-flash')
-                
-                # 強制指令：包含身分證英文字母、街景、殘值試算
-                prompt = """
-                請解析此謄本，並產出以下資訊：
-                1. 產權警示：查封/限制登記/民間二胎。
-                2. 社區建築：社區名、構造、樓層、屋齡。
-                3. 所有權人：姓名、完整身分證(必須包含首位英文字母，如 R220*****9)、持分、戶籍地、地址。
-                4. 貸款殘值：列出銀行、設定額、日期。採30年2.15%利率試算目前餘額。
-                5. 二胎空間：計算(市場80%價格 - 剩餘貸款)。
-                6. 交通：到國道與火車站車程。
-                禁止出現任何 標記。
-                """
-                
-                mime_type = "application/pdf" if uploaded_file.name.lower().endswith(".pdf") else uploaded_file.type
-                response = model.generate_content([prompt, {"mime_type": mime_type, "data": uploaded_file.getvalue()}])
-                
-                # --- 製作 Word 檔案 ---
-                doc = Document()
-                title = doc.add_heading('', 0)
-                run_t = title.add_run('房地產全方位終極評估報告書')
-                set_font(run_t, size=20, bold=True, color=RGBColor(0, 51, 153))
-                title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                
-                # 內容文字 (AI 回傳的結果)
-                p = doc.add_paragraph()
-                set_font(p.add_run(response.text), size=14)
-                
-                # 強制加入可點擊超連結 (以地址為基礎)
-                doc.add_heading('', level=1).add_run('外部資源連結').font.size = Pt(16)
-                p_link = doc.add_paragraph()
-                set_font(p_link.add_run("Google 街景圖連結："))
-                # 這裡預留一個連結位置
-                add_hyperlink(p_link, "點此開啟 Google 街景", "https://www.google.com/maps")
-                
-                # 產出檔案
-                buf = io.BytesIO()
-                doc.save(buf)
-                buf.seek(0)
-                
-                st.success("報告生成成功！")
-                st.download_button(
-                    label="📥 下載 Word 報告書",
-                    data=buf,
-                    file_name=f"房產評估報告_{datetime.date.today()}.docx",
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                )
-            except Exception as e:
-                st.error(f"發生錯誤：{e}")
-elif not uploaded_file:
-    st.info("請上傳檔案後點擊開始。")
+        if "您的_API_KEY" in API_KEY:
+            st.error("錯誤：請先回到 GitHub 的第 19 行填入您的 API 金鑰！")
+        else:
+            with st.spinner("AI 正在深度解析中..."):
+                try:
+                    genai.configure(api_key=API_KEY)
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    
+                    prompt = """
+                    請解析此房地產謄本，產出以下格式：
+                    1. 所有權人：姓名、完整身分證(含首位英文)、持分、地址。
+                    2. 貸款殘值：銀行名稱、設定額、日期。採30年2.15%利率計算餘額。
+                    3. 二胎空間：計算(市場80%價格 - 剩餘貸款)。
+                    嚴禁包含 標記。
+                    """
+                    
+                    mime_type = "application/pdf" if uploaded_file.name.lower().endswith(".pdf") else uploaded_file.type
+                    response = model.generate_content([prompt, {"mime_type": mime_type, "data": uploaded_file.getvalue()}])
+                    
+                    doc = Document()
+                    title = doc.add_heading('', 0)
+                    run_t = title.add_run('房地產全方位終極評估報告書')
+                    set_font(run_t, size=20, bold=True, color=RGBColor(0, 51, 153))
+                    
+                    p = doc.add_paragraph()
+                    set_font(p.add_run(response.text), size=14)
+                    
+                    # 增加街景連結
+                    p_link = doc.add_paragraph()
+                    set_font(p_link.add_run("Google 街景圖："))
+                    add_hyperlink(p_link, "點此開啟街景", "https://www.google.com/maps")
+                    
+                    buf = io.BytesIO()
+                    doc.save(buf)
+                    buf.seek(0)
+                    
+                    st.success("評估完成！")
+                    st.download_button(label="📥 下載 Word 報告書", data=buf, file_name="房產評估報告.docx")
+                except Exception as e:
+                    st.error(f"分析失敗，請確認 API Key 是否正確：{e}")
