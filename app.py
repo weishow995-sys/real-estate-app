@@ -59,12 +59,12 @@ if uploaded_file and API_KEY != "您的_API_KEY_貼在這邊":
             genai.configure(api_key=API_KEY)
             model = genai.GenerativeModel('gemini-1.5-flash')
             prompt = "請深度解析此謄本。包含產權警示、RC/SRC建材、屋齡、姓名、完整身分證(含英文字母)、持分、戶籍地。計算30年利率2.15%殘值、市場80%價格與二胎估值。禁止cite標記。"
-           # 確保傳遞正確的檔案格式
-res = model.generate_content([
+           res = model.generate_content([
     prompt, 
     {"mime_type": "application/pdf" if ".pdf" in uploaded_file.name.lower() else uploaded_file.type, 
      "data": uploaded_file.getvalue()}
-])
+]) 確保傳遞正確的檔案格式
+
             
             doc = Document()
             title = doc.add_heading('', 0)
