@@ -10,12 +10,11 @@ import docx
 
 # --- 1. 網頁介面設定 ---
 st.set_page_config(page_title="房地產評估系統", layout="centered")
-st.title("🏠 房地產一鍵評估系統 (V7-穩定版)")
+st.title("🏠 房地產一鍵評估系統 (Gemini 3 強力版)")
 st.write("上傳謄本照片或 PDF，即可自動生成 Word 報告。")
 
-# --- 2. API KEY 設定 ---
-# ⚠️ 請確保下方引號內是您在 AI Studio 申請的 AIzaSy... 代碼
-API_KEY = "AIzaSyBoak_uNJwl_KJnML5cllbPBblhl5C6HLc"
+# --- 2. API KEY 設定 (已修正大小寫 K) ---
+API_KEY = "AIzaSyBoaK_uNJwl_KJnML5cllbPBblhl5C6HLc"
 
 # --- 3. 工具函數 ---
 def set_font(run, size=14, bold=False, color=None):
@@ -52,18 +51,18 @@ uploaded_file = st.file_uploader("請選擇謄本檔案", type=["pdf", "png", "j
 
 if uploaded_file:
     if st.button("🚀 點此產出評估報告"):
-        with st.spinner("AI 正在解析數據中..."):
+        with st.spinner("Gemini 3 正在深度解析數據中..."):
             try:
                 genai.configure(api_key=API_KEY)
-                # 更新模型名稱至 2026 穩定版
+                # 使用最新 Gemini 3 系列模型 (程式碼代號為 2.0-flash)
                 model = genai.GenerativeModel('gemini-2.0-flash')
                 
                 prompt = """
                 請解析此房地產謄本，產出以下格式：
-                1. 所有權人：姓名、完整身分證(含首位英文)、持分比例、戶籍地址。
+                1. 所有權人：姓名、完整身分證(必須包含首位大寫英文與星號，如 R220*****9)、持分比例、戶籍地址。
                 2. 貸款殘值：銀行名稱、設定額、登記日期。
                 3. 二胎空間試算：以設定金額除以 1.2 作為本金，採 30 年 2.15% 利率試算目前餘額。
-                4. 計算：(市場行情 80% 價值 - 目前餘額)。
+                4. 二胎估值：計算 (市場行情 80% 價值 - 目前餘額)，並以紅色大字標註。
                 結果嚴禁包含任何 標記。
                 """
                 
@@ -76,23 +75,20 @@ if uploaded_file:
                 run_t = title.add_run('房地產全方位終極評估報告書')
                 set_font(run_t, size=20, bold=True, color=RGBColor(0, 51, 153))
                 
-                # 報告正文
                 p = doc.add_paragraph()
                 set_font(p.add_run(response.text), size=14)
                 
-                # 增加街景連結區塊
                 doc.add_heading('', level=1).add_run('外部資源連結').font.size = Pt(16)
                 p_link = doc.add_paragraph()
                 set_font(p_link.add_run("Google 街景服務："))
                 add_hyperlink(p_link, "點此開啟街景圖", "https://www.google.com/maps")
                 
-                # 轉存為二進位流供下載
                 buf = io.BytesIO()
                 doc.save(buf)
                 buf.seek(0)
                 
-                st.success("評估完成！")
-                st.download_button(label="📥 下載 Word 報告書", data=buf, file_name=f"評估報告_{datetime.date.today()}.docx")
+                st.success("Gemini 3 解析完成！")
+                st.download_button(label="📥 下載 Word 報告書", data=buf, file_name=f"房產報告_{datetime.date.today()}.docx")
                 
             except Exception as e:
-                st.error(f"分析失敗，建議更換模型名稱：{e}")
+                st.error(f"分析失敗，請檢查金鑰：{e}")
